@@ -24,7 +24,7 @@ const Check =
     AllOptions.unity.length > 2;
 
 if(Check) {
-    console.log("declare tamplete e name");
+    console.log("Ocorreu um erro ao declarar os argumentos.");
     process.exit(1);
 };
 
@@ -59,5 +59,5 @@ if(AllOptions.way === 'recursive') {
 
     });
 } else {
-    console.error("Nothing :(")
+    console.error("Ops...Parece que você passou como argumento para -w um valor não, aceito. Por favor, utilize 'recursive' ou 'multi-folder'");
 }
