@@ -3,61 +3,80 @@ import { promises as fs } from 'fs';
 import { Command } from 'commander';
 import path from 'path';
 
-// no momento não possui suporte a sistemas Unix, apenas Windows.
-
 const program = new Command();
 
 program
-    .requiredOption('-w, --way <type>', "escolha a forma de criação")
-    .option('-u, --unity <type>', 'escolha a unidade')
-    .option('-d, --directory <type...>', 'escolha o diretório')
-    .option('-t, --template <type...>', 'escolha o nome do template')
-    .option('-n, --name <type>', 'escolha o nome do arquivo');
+    .requiredOption('-t, --type <type>', "escolha a forma de criação")
+    .requiredOption('-u, --unity  <type>', "escolha a unidade")
+    .requiredOption('-d, --directory <type...>', 'escolha o diretório')
+    .requiredOption('-n, --name <type...>', 'escolha o nome da pasta(s)');
 
 program.parse();
 
-const AllOptions = program.opts();
-const Check = 
-    !AllOptions.template || 
-    !AllOptions.directory || 
-    !AllOptions.unity || 
-    AllOptions.unity.length > 2;
+const PROGRAM_ALL_OPTIONS = program.opts();
 
-if(Check) {
-    console.log("Ocorreu um erro ao declarar os argumentos.");
-    process.exit(1);
+async function HandleCreateFolderRecursive() {
+    const folder_path = path.join(
+        PROGRAM_ALL_OPTIONS.unity, 
+        ...PROGRAM_ALL_OPTIONS.directory,
+        ...PROGRAM_ALL_OPTIONS.name
+    );
+
+    try {
+        await fs.mkdir(folder_path, {recursive: true});
+        console.log(`pasta: ${PROGRAM_ALL_OPTIONS.name} criada com sucesso!`);
+    } catch (err) {
+        console.error(`ocorreu um erro: ${err}`);
+    };
+};
+async function HandleCreateFolderMultiple() {
+
+    PROGRAM_ALL_OPTIONS.name.forEach(async (itemName, index) => {
+        const folder_path = path.join(
+            PROGRAM_ALL_OPTIONS.unity, 
+            ...PROGRAM_ALL_OPTIONS.directory,
+            itemName,
+        );
+
+        try {
+            await fs.mkdir(folder_path, {recursive: true});
+            console.log(`pasta ${PROGRAM_ALL_OPTIONS.name[index]} criada com sucesso!`);
+        } catch (err) {
+            console.log(`ocorreu um erro: ${err}`);
+        }
+    })
+
+}
+function HandleErrors() {
+    const flag_errors = 
+        PROGRAM_ALL_OPTIONS.way && 
+        PROGRAM_ALL_OPTIONS.unity && 
+        PROGRAM_ALL_OPTIONS.type && 
+        PROGRAM_ALL_OPTIONS.name;
+
+    try {
+        if(flag_errors) {
+            throw new Error(`Está faltando alguma flag`);
+        };
+    } catch (err) {
+        console.error(`ocorreu o seguinte erro: ${err}`)
+    }
+};
+async function HandleInputUser() {
+    HandleErrors();
+
+    const possibleTypes = {
+        recursive: PROGRAM_ALL_OPTIONS.type === 'recursive',
+        multiple: PROGRAM_ALL_OPTIONS.type === 'multiple',
+    }
+
+    if(possibleTypes.recursive) {
+        await HandleCreateFolderRecursive();
+    } else if(possibleTypes.multiple) {
+        await HandleCreateFolderMultiple();
+    } else {
+        console.error(`ops...tente escolher como type(-t): "recursive" ou "multiple"`);
+    }
 };
 
-if(AllOptions.way === 'recursive') {
-    const templePath = path.join(AllOptions.unity, ...AllOptions.directory, ...AllOptions.template);
-    const filePath   = path.join(templePath,`${AllOptions.name}.txt`);
-
-    async function createTemplate() {
-        try {
-            await fs.mkdir(templePath, { recursive: true });
-            await fs.writeFile(filePath, 'hello');
-            console.log('Pastas criadas com sucesso de maneira recursiva');
-        } catch (err) {
-            console.error(`Ocorreu um erro: ${err.message}`);
-            process.exit(1);
-        }
-    };
-    
-    createTemplate();
-} else if(AllOptions.way == 'multi-folder') {
-
-    AllOptions.template.forEach(async (item) => {
-        const TemplatePath = path.join(AllOptions.unity, ...AllOptions.directory, item);
-
-        try {
-            await fs.mkdir(TemplatePath);
-            console.log('Pasta criada com sucesso: ' + item);
-        } catch (err) {
-            console.error('ocorreu um erro', err);
-            process.exit(0);
-        };
-
-    });
-} else {
-    console.error("Ops...Parece que você passou como argumento para -w um valor não, aceito. Por favor, utilize 'recursive' ou 'multi-folder'");
-}
+HandleInputUser();
